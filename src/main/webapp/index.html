@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title> 小项目 </title>
+		
+		<script src="js/jquery.js"></script>
+		<script src="js/afquery.js"></script>
+		<script src="js/vue.js"></script>
+
+		<link rel="stylesheet" href="element-ui/theme-chalk/index.css">
+		<script src="element-ui/index.js"></script>
+
+		<style>
+			body {
+				padding: 0;
+				margin: 0;
+				background-color: #f1f1f1;
+			}
+		
+			.container {
+				width: 80%;
+				margin: 20px auto;
+				height: 550px;
+				background-color: #fff;
+				border: 1px solid #eee;
+				padding: 10px;
+			}	
+			.el-aside {
+				padding: 10px;
+				box-shadow: 4px 0 4px rgba(0, 0, 0, .12), 0 0 6px rgba(0, 0, 0, .04)
+			}
+			.sidemenu{
+				border-right: 0;
+			}
+		</style>
+		
+	</head>
+	<body>
+		
+		<div id="app">
+		
+			<el-container class='container'>
+				<el-aside width="200px" style='line-height: 300%;'>
+					<label style='color:#909399'>管理操作</label>
+
+					<el-menu default-active="list" class="sidemenu" @select="select_menu">
+						<el-menu-item index="list">
+							<i class="el-icon-s-data"></i>
+							<span slot="title">查看全部</span>
+						</el-menu-item>
+						<el-menu-item index="add">
+							<i class="el-icon-plus"></i>
+							<span slot="title">添加</span>
+						</el-menu-item>
+						<el-menu-item index="del">
+							<i class="el-icon-delete"></i>
+							<span slot="title">删除</span>
+						</el-menu-item>
+					</el-menu>
+				</el-aside>
+
+				<el-main>
+					<div style='padding:10px'>	
+						<el-input v-model.trim="filter" placeholder="请输入内容" style='width:200px'></el-input>
+						<el-button type="primary" onclick='my.do_query()'>查询</el-button>
+					</div>
+										
+					<el-table :data="tableData" 
+								ref="multipleTable" 
+								@selection-change="table_sel_changed"
+								stripe
+								style="width: 100%; maring: 10px 20px">
+						<el-table-column type="selection" width="55">
+						</el-table-column>
+						<el-table-column prop="id" label="学号" width="180">
+						</el-table-column>
+						<el-table-column prop="name" label="姓名" width="180">
+						</el-table-column>
+						<el-table-column prop="sex" label="性别" v-bind:formatter="table_sex_formatter">
+						</el-table-column>
+						<el-table-column prop="phone" label="手机号">
+						</el-table-column>
+					</el-table>
+				</el-main>
+			</el-container>
+
+			<el-dialog title="添加记录" :visible.sync="dialogAddVisiable" width="600px">
+				<el-form :model="form">
+					<el-form-item label="学号" label-width="80px">
+						<el-input v-model.number="form.id" autocomplete="off"></el-input>
+					</el-form-item>
+					<el-form-item label="姓名" label-width="80px">
+						<el-input v-model.number="form.name" autocomplete="off"></el-input>
+					</el-form-item>
+					<el-form-item label="性别" label-width="80px">
+						<el-switch v-model="form.sex" active-color="#13ce66" inactive-color="#ff4949" active-text="男生" inactive-text="女生">
+						</el-switch>
+					</el-form-item>
+
+					<el-form-item label="手机号" label-width="80px">
+						<el-input v-model="form.phone" autocomplete="off"></el-input>
+					</el-form-item>
+				</el-form>
+				<div slot="footer" class="dialog-footer">
+					<el-button @click="dialogAddVisiable = false">取 消</el-button>
+					<el-button type="primary" @click="dlg_add_submit">确 定</el-button>
+				</div>
+			</el-dialog>
+			
+		</div>
+	</body>
+	
+	<script>
+		
+		var my = {}
+		
+		// 数据查询
+		my.do_query = function(){
+			var data ={
+				filter : app.filter,
+			}
+			
+			Af.rest('StuQuery', data, function(ret){
+				app.tableData = ret.data ;
+			})
+		}
+		
+		// 添加一条记录
+		my.do_add = function() {
+			
+			Af.rest('StuAdd', app.form, function(ret){
+				my.do_query() ; // 重新加载
+			})
+		}
+				
+		// 删除选中的记录
+		my.do_remove_rows = function(){
+			var data = {
+				idlist : [] ,
+			}
+			
+			// 取得选中的记录的id
+			for(var i=0; i<app.tableSelection.length; i++)
+				data.idlist.push( app.tableSelection[i].id);
+			
+			// 发送REST请求			
+			Af.rest('StuRemove', data, function(ret){
+				my.do_query();
+			})
+		}
+		
+		var app = new Vue({
+			el: '#app',
+			data: {
+				tableData: [],
+				filter : '' ,
+				dialogAddVisiable: false,
+				form: {
+					id: 0,
+					name: '',
+					sex: true,
+					phone: ''
+				},
+				tableSelection : [] ,
+			},
+			methods: {				
+				// 表格格式化,sex这一列
+				table_sex_formatter(row, column, cellValue, index) {
+					return cellValue ? '男' : '女';
+				},	
+				// 左侧菜单事件
+				select_menu(index, indexPath) {
+					console.log(index, indexPath);
+					// index 即为选中的菜单项的 index值 
+					if (index == 'list') my.do_query();
+					if (index == 'add') this.dlg_add_open();
+					if (index == 'del') my.do_remove_rows();
+				},
+				// 添加记录对话框
+				dlg_add_open() {
+					this.dialogAddVisiable = true;
+					this.form.id = 0;
+					this.form.name = '';
+					this.form.sex = true;
+					this.form.phone = '';
+				},
+				dlg_add_submit() {
+					this.dialogAddVisiable = false;
+					my.do_add();
+				},
+				// Table多选支持
+				table_sel_changed(val) {
+					this.tableSelection = val;
+				},
+			}
+		});
+		
+		// 加载数据
+		my.do_query();
+		
+				
+	</script>
+</html>
